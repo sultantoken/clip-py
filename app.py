@@ -27,14 +27,13 @@ def clip():
         '--extractor-args', 'youtube:player_client=tv,web',
         '-f', 'best[height<=720][ext=mp4]/best[height<=720]/best',
         '--download-sections', f'*{start}-{end}',
-        '--force-keyframes-at-cuts',
         '--concurrent-fragments', '5',
         '--no-playlist',
+        '--remux-video', 'mp4',
         '-o', output,
         url
     ]
 
-    # Add cookies if available
     if os.path.exists(COOKIES_FILE):
         cmd += ['--cookies', COOKIES_FILE]
 
