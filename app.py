@@ -1,9 +1,16 @@
 from flask import Flask, request, send_file, jsonify
-import subprocess, os, uuid
+import subprocess, os, uuid, base64
 
 app = Flask(__name__)
 DOWNLOAD_DIR = '/tmp/clips'
+COOKIES_FILE = '/tmp/yt_cookies.txt'
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+# Write cookies from env variable on startup
+cookies_b64 = os.environ.get('COOKIES_BASE64', '')
+if cookies_b64:
+    with open(COOKIES_FILE, 'wb') as f:
+        f.write(base64.b64decode(cookies_b64))
 
 @app.route('/clip', methods=['POST'])
 def clip():
@@ -11,22 +18,29 @@ def clip():
     url      = str(data.get('url', '')).strip().lstrip('=')
     start    = int(str(data.get('start_seconds', 0)).strip().lstrip('='))
     end      = int(str(data.get('end_seconds', 30)).strip().lstrip('='))
-    duration = end - start
     clip_id  = str(uuid.uuid4())[:8]
     output   = f'{DOWNLOAD_DIR}/{clip_id}.mp4'
 
-    try:
-        subprocess.run([
-            'yt-dlp',
-            '--no-check-certificates',
-            '--extractor-args', 'youtube:player_client=android',
-            '-f', 'best[ext=mp4]/best',
-            '--download-sections', f'*{start}-{end}',
-            '--force-keyframes-at-cuts',
-            '-o', output,
-            url
-        ], check=True, timeout=300, capture_output=True, text=True)
+    cmd = [
+        'yt-dlp',
+        '--no-check-certificates',
+        '--extractor-args', 'youtube:player_client=android',
+        '-f', 'best[height<=720][ext=mp4]/best[height<=720]/best',
+        '--download-sections', f'*{start}-{end}',
+        '--force-keyframes-at-cuts',
+        '--concurrent-fragments', '5',
+        '--no-playlist',
+        '-o', output,
+        url
+    ]
 
+    # Add cookies if available
+    if os.path.exists(COOKIES_FILE):
+        cmd += ['--cookies', COOKIES_FILE]
+
+    try:
+        subprocess.run(cmd, check=True, timeout=300,
+                       capture_output=True, text=True)
         return send_file(output, mimetype='video/mp4',
                          as_attachment=True,
                          download_name=f'clip_{clip_id}.mp4')
