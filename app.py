@@ -24,7 +24,7 @@ def clip():
     cmd = [
         'yt-dlp',
         '--no-check-certificates',
-        '--extractor-args', 'youtube:player_client=android',
+        '--extractor-args', 'youtube:player_client=tv,web',
         '-f', 'best[height<=720][ext=mp4]/best[height<=720]/best',
         '--download-sections', f'*{start}-{end}',
         '--force-keyframes-at-cuts',
